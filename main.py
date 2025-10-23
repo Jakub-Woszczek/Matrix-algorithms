@@ -9,7 +9,7 @@ def run_lab(lab_name: str):
         print(f"❌ No main.py found in '{lab_name}'")
         return
     print(f"▶️ Running {lab_name} ...\n")
-    subprocess.run(["python3", str(lab_path)], check=True)
+    subprocess.run(["python3", "-m", f"{lab_name}.main"], check=True)
 
 
 if __name__ == "__main__":
