@@ -57,28 +57,14 @@ def recursion_inversion(A: np.ndarray, multiplication_function):
         flops += 1  # division
         return np.array([[1.0 / M[0, 0]]])
 
-    def inv2x2(M):
-        """Inverse of a 2×2 matrix using the exact determinant formula"""
-        global flops
-        a, b, c, d = M[0, 0], M[0, 1], M[1, 0], M[1, 1]
-        det = a * d - b * c
-        flops += 3  # two mults + one sub (approx counting)
-        if det == 0.0:
-            raise np.linalg.LinAlgError("Singular 2x2 block encountered.")
-        inv_det = 1.0 / det
-        flops += 1  # division
-        invM = inv_det * np.array([[d, -b], [-c, a]])
-        flops += 4  # four mults by inv_det
-        return invM
+
 
     def _inv(M):
         """Recursive block inversion following the A11-first Schur compblement scheme."""
         nloc = M.shape[0]
         if nloc == 1:
             return inv1x1(M)
-        if nloc == 2:
-            return inv2x2(M)
-
+    
 
         # Split
         A11, A12, A21, A22 = split(M)
