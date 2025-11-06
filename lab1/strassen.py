@@ -1,6 +1,6 @@
 import numpy as np
 
-flops = 0
+flops_strassen = 0
 
 
 def strassen_multiplication(A, B):
@@ -9,7 +9,7 @@ def strassen_multiplication(A, B):
     :param A: square numpy array
     :param B: square numpy array
     """
-    global flops
+    global flops_strassen
 
     assert A.shape[1] == B.shape[0], "Incompatible shapes for multiplication"
 
@@ -21,7 +21,7 @@ def strassen_multiplication(A, B):
         return A11, A12, A21, A22
 
     def naive_multiplication(A, B):
-        global flops
+        global flops_strassen
 
         A_rows, A_cols = A.shape
         B_rows, B_cols = B.shape
@@ -29,7 +29,7 @@ def strassen_multiplication(A, B):
         assert A_cols == B_rows, "Incompatible shapes for multiplication"
 
         result = np.empty((A_rows, B_cols))
-        flops += A_rows * B_cols * (2 * B_rows - 1)
+        flops_strassen += A_rows * B_cols * (2 * B_rows - 1)
 
         for i in range(A_rows):
             for j in range(B_cols):
@@ -42,7 +42,7 @@ def strassen_multiplication(A, B):
         return result
 
     def remove_row(A, B):
-        global flops
+        global flops_strassen
 
         A_main = A[:-1, :-1]
         A_col = A[:-1, -1:]
@@ -57,19 +57,19 @@ def strassen_multiplication(A, B):
         top_left = req_multiplication(A_main, B_main) + naive_multiplication(
             A_col, B_row
         )
-        flops += top_left.size
+        flops_strassen += top_left.size
         top_right = naive_multiplication(A_main, B_col) + naive_multiplication(
             A_col, beta
         )
-        flops += top_right.size
+        flops_strassen += top_right.size
         bottom_left = naive_multiplication(A_row, B_main) + naive_multiplication(
             alpha, B_row
         )
-        flops += bottom_left.size
+        flops_strassen += bottom_left.size
         bottom_right = naive_multiplication(A_row, B_col) + naive_multiplication(
             alpha, beta
         )
-        flops += bottom_right.size
+        flops_strassen += bottom_right.size
 
         top = np.hstack((top_left, top_right))
         bottom = np.hstack((bottom_left, bottom_right))
@@ -77,15 +77,16 @@ def strassen_multiplication(A, B):
 
     def req_multiplication(A, B):
         """Multiplication of matrix A with matrix B using Strassen method, only on even matrices"""
-        global flops
+        global flops_strassen
         A_rows, A_cols = np.shape(A)
         B_rows, B_cols = np.shape(B)
 
         if A_rows % 2 == 1:
+
             return remove_row(A, B)
 
         if A_rows == 2 and A_cols == 2 and B_rows == 2 and B_cols == 2:
-            flops += 12
+            flops_strassen += 12
             return np.array(
                 [
                     [
@@ -110,18 +111,18 @@ def strassen_multiplication(A, B):
         P6 = req_multiplication(A21 - A11, B11 + B12)
         P7 = req_multiplication(A12 - A22, B21 + B22)
         # Sum of all additions to create args for req_multiplication (all A11,...,B11,... are equaled sized)
-        flops += 10 * A11.size
+        flops_strassen += 10 * A11.size
 
         C11 = P1 + P4 - P5 + P7
         C12 = P3 + P5
         C21 = P2 + P4
         C22 = P1 - P2 + P3 + P6
         # Sum of all additions to create C11,...
-        flops += 8 * P1.size
+        flops_strassen += 8 * P1.size
 
         upper = np.hstack((C11, C12))
         lower = np.hstack((C21, C22))
 
         return np.vstack((upper, lower))
 
-    return req_multiplication(A, B), flops
+    return req_multiplication(A, B), flops_strassen

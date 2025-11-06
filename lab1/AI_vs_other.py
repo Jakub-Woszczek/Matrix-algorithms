@@ -13,6 +13,7 @@ def measure_time(func, A, B):
 scales = [i for i in range(2, 4)]
 
 print("{:<8} {:<15} {:<15}".format("k", "Binet [s]", "AI [s]"))
+
 print("-" * 55)
 
 for k in scales:

@@ -26,7 +26,7 @@ def generate_computing_time(multiplication_function, function=None, csv_save_pat
         # f.write(f"# repeat_times={repeat_times}\n")
         # f.write(f"# start_val={a}\n")
         # f.write(f"# end_val={b}\n")
-        # f.write(f"# step={step}\n")
+        generate_computing_time# f.write(f"# step={step}\n")
         writer.writerow(["size", "average_time", "average_memory", "average_flops"])
 
         for n in sizes:

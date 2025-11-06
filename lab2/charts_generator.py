@@ -1,0 +1,89 @@
+import csv
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+
+# (możesz zostawić swoją wersję create_chart_multiple; tu jest z katalogiem lab2/charts)
+def create_chart_multiple(
+    datasets, x_description=None, y_description=None, title=None, out_dir="lab2/charts"
+):
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+    path = Path(out_dir) / f"{title}.png"
+    plt.figure(figsize=(8, 6))
+
+    for x_vals, y_vals, label in datasets:
+        plt.plot(x_vals, y_vals, linestyle="-", label=label)
+
+    if x_description:
+        plt.xlabel(x_description)
+    if y_description:
+        plt.ylabel(y_description)
+
+    plt.title(title)
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(path)
+    plt.close()
+    print(f"✅ saved: {path}")
+
+
+def _read_csv(path):
+    """Helper: wczytuje CSV do dict."""
+    mb = 1024**2
+    data = {"size": [], "average_time": [], "average_memory": [], "average_flops": []}
+    with open(path, "r", newline="") as f:
+        reader = csv.reader(f, delimiter=",")
+        for row in reader:
+            if not row or row[0].startswith("#") or row[0] == "size":
+                continue
+            data["size"].append(float(row[0]))
+            data["average_time"].append(float(row[1]))
+            data["average_memory"].append(float(row[2]) / mb)
+            data["average_flops"].append(float(row[3]))
+    return data
+
+
+def generate_inv(
+    data_dir="lab2/data",
+    charts_dir="lab2/charts",
+    filename_pattern="{method}_inverse_start-5_end-10_step-2_repeat-5.csv",
+    methods=("Binet", "Strassen"),
+):
+    """
+    Generuje 3 wykresy porównawcze (czas, pamięć, FLOPs) dla INVERSE w lab2.
+    Czyta pliki CSV:
+        lab2/data/Binet_inverse_start-5_end-200_step-2_repeat-5.csv
+        lab2/data/Strassen_inverse_start-5_end-200_step-2_repeat-5.csv
+    """
+    # wczytaj dane dla wszystkich metod
+    series = {}
+    for m in methods:
+        path = Path(data_dir) / filename_pattern.format(method=m)
+        series[m] = _read_csv(path)
+
+    # Time
+    datasets = [(series[m]["size"], series[m]["average_time"], m) for m in methods]
+    create_chart_multiple(
+        datasets,
+        "Size",
+        "Computing time [s]",
+        "Inverse - Computing Time Comparison",
+        charts_dir,
+    )
+
+    # Memory
+    datasets = [(series[m]["size"], series[m]["average_memory"], m) for m in methods]
+    create_chart_multiple(
+        datasets,
+        "Size",
+        "Memory usage [MB]",
+        "Inverse - Memory Usage Comparison",
+        charts_dir,
+    )
+
+    # FLOPs
+    datasets = [(series[m]["size"], series[m]["average_flops"], m) for m in methods]
+    create_chart_multiple(
+        datasets, "Size", "FLOPs", "Inverse - FLOPs Comparison", charts_dir
+    )
