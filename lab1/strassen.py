@@ -22,7 +22,6 @@ def strassen_multiplication(A, B):
 
     def naive_multiplication(A, B):
         global flops_strassen
-
         A_rows, A_cols = A.shape
         B_rows, B_cols = B.shape
 
@@ -34,7 +33,6 @@ def strassen_multiplication(A, B):
         for i in range(A_rows):
             for j in range(B_cols):
                 s = 0
-
                 for k in range(A_cols):
                     s += A[i, k] * B[k, j]
                 result[i, j] = s
@@ -76,14 +74,23 @@ def strassen_multiplication(A, B):
         return np.vstack((top, bottom))
 
     def req_multiplication(A, B):
-        """Multiplication of matrix A with matrix B using Strassen method, only on even matrices"""
+        """Multiplication of matrix A with matrix B using Strassen method, adding padding if needed"""
         global flops_strassen
         A_rows, A_cols = np.shape(A)
         B_rows, B_cols = np.shape(B)
 
-        if A_rows % 2 == 1:
+        # Padding
+        n = max(A_rows, A_cols, B_rows, B_cols)
+        if n % 2 == 1:
+            n += 1
 
-            return remove_row(A, B)
+        if (A_rows != n) or (A_cols != n) or (B_rows != n) or (B_cols != n):
+            A_padded = np.zeros((n, n), dtype=A.dtype)
+            B_padded = np.zeros((n, n), dtype=B.dtype)
+            A_padded[:A_rows, :A_cols] = A
+            B_padded[:B_rows, :B_cols] = B
+            C_padded = req_multiplication(A_padded, B_padded)
+            return C_padded[:A_rows, :B_cols]
 
         if A_rows == 2 and A_cols == 2 and B_rows == 2 and B_cols == 2:
             flops_strassen += 12
@@ -100,6 +107,9 @@ def strassen_multiplication(A, B):
                 ]
             )
 
+        if A_rows % 2 == 1:
+            return remove_row(A, B)
+
         A11, A12, A21, A22 = split_matrix(A)
         B11, B12, B21, B22 = split_matrix(B)
 
@@ -110,19 +120,18 @@ def strassen_multiplication(A, B):
         P5 = req_multiplication(A11 + A12, B22)
         P6 = req_multiplication(A21 - A11, B11 + B12)
         P7 = req_multiplication(A12 - A22, B21 + B22)
-        # Sum of all additions to create args for req_multiplication (all A11,...,B11,... are equaled sized)
+
         flops_strassen += 10 * A11.size
 
         C11 = P1 + P4 - P5 + P7
         C12 = P3 + P5
         C21 = P2 + P4
         C22 = P1 - P2 + P3 + P6
-        # Sum of all additions to create C11,...
+
         flops_strassen += 8 * P1.size
 
         upper = np.hstack((C11, C12))
         lower = np.hstack((C21, C22))
-
         return np.vstack((upper, lower))
 
     return req_multiplication(A, B), flops_strassen
