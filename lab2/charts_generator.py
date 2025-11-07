@@ -48,7 +48,7 @@ def _read_csv(path):
 def generate_inv(
     data_dir="lab2/data",
     charts_dir="lab2/charts",
-    filename_pattern="{method}_inverse_start-5_end-50_step-1_repeat-5.csv",
+    filename_pattern="{method}_inverse_start-5_end-80_step-2_repeat-1.csv",
     methods=("Binet", "Strassen"),
 ):
 
@@ -77,7 +77,7 @@ def generate_inv(
         datasets,
         "Size",
         "Computing time [s]",
-        "Gauss - Computing Time Comparison (with theoretical n³)",
+        "Inverse - Computing Time Comparison (with theoretical n³)",
         charts_dir,
     )
 
@@ -101,7 +101,7 @@ def generate_inv(
 def generate_lu(
     data_dir="lab2/data",
     charts_dir="lab2/charts",
-    filename_pattern="{method}_LU_start-5_end-10_step-2_repeat-5.csv",
+    filename_pattern="{method}_LU_start-5_end-80_step-2_repeat-1.csv",
     methods=("Binet", "Strassen"),
 ):
     """
@@ -135,7 +135,7 @@ def generate_lu(
         datasets,
         "Size",
         "Computing time [s]",
-        "Gauss - Computing Time Comparison (with theoretical n³)",
+        "LU - Computing Time Comparison (with theoretical n³)",
         charts_dir,
     )
 
@@ -159,7 +159,7 @@ def generate_lu(
 def generate_gauss(
     data_dir="lab2/data",
     charts_dir="lab2/charts",
-    filename_pattern="{method}_Gauss_start-5_end-30_step-5_repeat-3.csv",
+    filename_pattern="{method}_Gauss_start-5_end-80_step-2_repeat-1.csv",
     methods=("Binet", "Strassen"),
 ):
     """

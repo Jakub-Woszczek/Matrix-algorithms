@@ -18,8 +18,8 @@ def generate_lu(csv_save_path="lab2/data/", method="Binet"):
     z użyciem wybranego algorytmu mnożenia (Binet lub Strassen).
     Zapisuje do CSV: średni czas, średnie zużycie pamięci (peak) i średnie FLOPs.
     """
-    repeat_times = 3
-    a, b, step = 5, 60, 5
+    repeat_times = 1
+    a, b, step = 5, 80, 2
     sizes = [i for i in range(a, b, step)]
 
     if method == "Binet":
@@ -164,8 +164,8 @@ def generate_gauss(csv_save_path="lab2/data/", method="Binet"):
       - średnia liczba FLOPs
     """
 
-    repeat_times = 3
-    a, b, step = 5, 30, 5
+    repeat_times = 1
+    a, b, step = 5, 80, 2
     sizes = [i for i in range(a, b, step)]
 
     if method == "Binet":
