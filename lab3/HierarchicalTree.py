@@ -1,5 +1,3 @@
-import random
-
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -7,8 +5,14 @@ from lab3.image_magic.split_rgb import split_rgb
 
 
 class HierarchicalTree:
-    def __init__(self, image_path):
+    def __init__(self, image_path, delta, b_rank, min_size=4):
         self.image = plt.imread(image_path)
+
+        # parametry sterujące podziałem
+        self.delta = float(delta)  # próg dla wartości osobliwych
+        self.b_rank = int(b_rank)  # maksymalna ranga bloku
+        self.min_size = int(min_size)  # minimalny rozmiar bloku (wys / szer)
+
         self.root = None
         self.red_layer = None
         self.green_layer = None
@@ -16,38 +20,120 @@ class HierarchicalTree:
 
         self.red_layer, self.green_layer, self.blue_layer = split_rgb(self.image)
 
-        print(self.red_layer)
-
-    def create_tree(self, image_matrix):
-        """
-        :param image_matrix: numpy matrix
-        :return:
-        """
+    # -------- budowa drzewa --------
+    def create_tree(self, image_matrix: np.ndarray):
         max_row, max_col = image_matrix.shape
         my_matrix = MyMatrix(image_matrix, 0, max_row, 0, max_col)
         self.root = self.build_node(my_matrix)
+        return self.root
 
     def build_node(self, my_matrix):
-
         node = Node()
         node.my_matrix = my_matrix
         view = my_matrix.get_view()
-        s, v, d = np.linalg.svd(view)
-        node.S, node.V, node.D = s, v, d  # Optional (im not sure if its necessary)
 
-        # Base case
-        if random.choice([True, False]):
-            # TODO warunek rank i wartość osobliwa / macierz za mała do powdzielenia
+        # pełne SVD bloku
+        U, S, VT = np.linalg.svd(view, full_matrices=False)
+
+        # odcinamy małe wartości osobliwe
+        mask = S >= self.delta
+        S_thr = S[mask]
+
+        # ograniczamy rangę do b_rank
+        k = min(self.b_rank, len(S_thr))
+        S_used = S_thr[:k]
+        U_used = U[:, :k]
+        VT_used = VT[:k, :]
+
+        node.U = U_used
+        node.S = S_used
+        node.VT = VT_used
+
+        height, width = view.shape
+        min_side = min(height, width)
+
+        # --- warunek stopu ---
+        should_split = (
+            min_side >= 2 * self.min_size  # musi się dać sensownie podzielić
+            and k == self.b_rank  # mamy "pełną" rangę -> jest jeszcze co kompresować
+            and len(S_thr) > 0
+            and S_used[-1] >= self.delta  # najmniejsza zachowana sigma nadal duża
+        )
+
+        if not should_split:
+            # liść
             return node
-        else:
-            ul, ur, ll, lr = my_matrix.compress_matrix()
-            ul_node = self.build_node(ul)
-            ur_node = self.build_node(ur)
-            ll_node = self.build_node(ll)
-            lr_node = self.build_node(lr)
-            node.set_children([ul_node, ur_node, ll_node, lr_node])
+
+        # rekurencyjnie dzielimy na 4 podbloki
+        ul, ur, ll, lr = my_matrix.compress_matrix()
+        ul_node = self.build_node(ul)
+        ur_node = self.build_node(ur)
+        ll_node = self.build_node(ll)
+        lr_node = self.build_node(lr)
+        node.set_children([ul_node, ur_node, ll_node, lr_node])
 
         return node
+
+    # -------- rekonstrukcja --------
+    def reconstruct_channel(self, shape, channel="red"):
+        """
+        Rekonstruuje jeden kanał (np. self.red_layer) z drzewa.
+        shape – (wys, szer) oryginalnej macierzy.
+        """
+        if self.root is None:
+            raise RuntimeError("Drzewo nie zostało zbudowane. Wywołaj create_tree().")
+
+        recon = np.zeros(shape, dtype=float)
+        self._reconstruct_node(self.root, recon)
+        return np.clip(recon, 0, 255).astype(np.uint8)
+
+    def _reconstruct_node(self, node, out_matrix):
+        # jeśli liść – wstawiamy skompresowany blok
+        if node.is_leaf():
+            block = node.U @ (np.diag(node.S) @ node.VT)
+            view = node.my_matrix
+            out_matrix[
+                view.min_row : view.max_row,
+                view.min_col : view.max_col,
+            ] = block
+            return
+
+        # węzeł wewnętrzny – schodzimy rekurencyjnie
+        for child in node.children:
+            self._reconstruct_node(child, out_matrix)
+
+    def draw_partition(self, shape):
+        """
+        Zwraca 2D array uint8 z narysowanym podziałem bloków (czarne linie na białym tle).
+        """
+        if self.root is None:
+            raise RuntimeError("Drzewo nie zostało zbudowane.")
+
+        h, w = shape
+        canvas = np.full((h, w), 255, dtype=np.uint8)  # białe tło
+        thickness = 1
+
+        def draw_node(node: Node):
+            m = node.my_matrix
+            r0, r1, c0, c1 = m.min_row, m.max_row, m.min_col, m.max_col
+
+            # ramka tylko dla liści (jak na slajdzie)
+            if node.is_leaf():
+                # górna i dolna krawędź
+                canvas[r0 : r0 + thickness, c0:c1] = 0
+                canvas[r1 - thickness : r1, c0:c1] = 0
+                # lewa i prawa krawędź
+                canvas[r0:r1, c0 : c0 + thickness] = 0
+                canvas[r0:r1, c1 - thickness : c1] = 0
+                return
+
+            # węzeł wewnętrzny – rysujemy jego dzieci
+            for ch in node.children:
+                if ch is not None:
+                    draw_node(ch)
+
+        draw_node(self.root)
+        return canvas
 
 
 class Node:
@@ -62,29 +148,18 @@ class Node:
     def __init__(self):
         self.children = [None, None, None, None]
         self.my_matrix = None
-        self.S, self.V, self.D = None, None, None
+        self.U, self.S, self.VT = None, None, None
 
     def set_children(self, children):
         self.children = children
 
-    def set_my_matrix(self, matrix):
-        self.my_matrix = matrix
+    def is_leaf(self):
+        return all(ch is None for ch in self.children)
 
 
 class MyMatrix:
     """
     Lightweight matrix view (window) into a larger NumPy array.
-
-    Stores:
-    1. Coordinates of a rectangular subregion:
-       - min_row (inclusive)
-       - max_row (exclusive)
-       - min_col (inclusive)
-       - max_col (exclusive)
-       -> it mean that max_row=5 is not included, last row included is row=4 (trust me,I'm almost engineer)
-       These define the slice: matrix[min_row:max_row, min_col:max_col]
-    2. A reference (pointer) to the full matrix.
-    3. Provides a .get() method returning a NumPy view into the matrix.
     """
 
     def __init__(self, matrix, min_row, max_row, min_col, max_col):
