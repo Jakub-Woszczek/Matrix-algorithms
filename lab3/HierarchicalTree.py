@@ -9,10 +9,10 @@ class HierarchicalTree:
         self.image = plt.imread(image_path)
 
         # parametry sterujące podziałem
-        self.delta = float(delta)  # próg dla wartości osobliwych
+
         self.b_rank = int(b_rank)  # maksymalna ranga bloku
         self.min_size = int(min_size)  # minimalny rozmiar bloku (wys / szer)
-
+        self.delta = delta  # próg wartości osobliwych`
         self.root = None
         self.red_layer = None
         self.green_layer = None
@@ -20,12 +20,30 @@ class HierarchicalTree:
 
         self.red_layer, self.green_layer, self.blue_layer = split_rgb(self.image)
 
-    # -------- budowa drzewa --------
     def create_tree(self, image_matrix: np.ndarray):
         max_row, max_col = image_matrix.shape
         my_matrix = MyMatrix(image_matrix, 0, max_row, 0, max_col)
+
+        view = my_matrix.get_view()
+        U, S, VT = np.linalg.svd(view, full_matrices=False)
+        print("S size:", S.size)
+
+        if isinstance(self.delta, (int, float, np.integer, np.floating)):
+            self.delta = S[int(self.delta)]
+        if isinstance(self.delta, str):
+            if self.delta == "median":
+                self.delta = float(np.median(S))
+            elif self.delta == "mean":
+                self.delta = float(np.mean(S))
+            elif self.delta == "max":
+                self.delta = float(np.max(S))
+            elif self.delta == "min":
+                self.delta = float(np.min(S))
+
         self.root = self.build_node(my_matrix)
+        print("Tree created with delta =", self.delta)
         return self.root
+
 
     def build_node(self, my_matrix):
         node = Node()
@@ -52,16 +70,16 @@ class HierarchicalTree:
         height, width = view.shape
         min_side = min(height, width)
 
-        # --- warunek stopu ---
+        # waunki podziału
         should_split = (
             min_side >= 2 * self.min_size  # musi się dać sensownie podzielić
-            and k == self.b_rank  # mamy "pełną" rangę -> jest jeszcze co kompresować
+            and k == self.b_rank  # mamy "pełną" rangę więc jest jeszcze co kompresować
             and len(S_thr) > 0
             and S_used[-1] >= self.delta  # najmniejsza zachowana sigma nadal duża
         )
 
         if not should_split:
-            # liść
+            # lisc
             return node
 
         # rekurencyjnie dzielimy na 4 podbloki
@@ -74,12 +92,11 @@ class HierarchicalTree:
 
         return node
 
-    # -------- rekonstrukcja --------
-    def reconstruct_channel(self, shape, channel="red"):
-        """
-        Rekonstruuje jeden kanał (np. self.red_layer) z drzewa.
-        shape – (wys, szer) oryginalnej macierzy.
-        """
+    # rekonstrukcja obrazu z drzewa
+    def reconstruct_channel(self, shape):
+
+        # Rekonstruuje jeden kanal
+
         if self.root is None:
             raise RuntimeError("Drzewo nie zostało zbudowane. Wywołaj create_tree().")
 
@@ -103,9 +120,7 @@ class HierarchicalTree:
             self._reconstruct_node(child, out_matrix)
 
     def draw_partition(self, shape):
-        """
-        Zwraca 2D array uint8 z narysowanym podziałem bloków (czarne linie na białym tle).
-        """
+
         if self.root is None:
             raise RuntimeError("Drzewo nie zostało zbudowane.")
 
@@ -117,7 +132,6 @@ class HierarchicalTree:
             m = node.my_matrix
             r0, r1, c0, c1 = m.min_row, m.max_row, m.min_col, m.max_col
 
-            # ramka tylko dla liści (jak na slajdzie)
             if node.is_leaf():
                 # górna i dolna krawędź
                 canvas[r0 : r0 + thickness, c0:c1] = 0
@@ -127,7 +141,7 @@ class HierarchicalTree:
                 canvas[r0:r1, c1 - thickness : c1] = 0
                 return
 
-            # węzeł wewnętrzny – rysujemy jego dzieci
+            # węzeł wewnętrzny, rysujemy jego dzieci
             for ch in node.children:
                 if ch is not None:
                     draw_node(ch)
