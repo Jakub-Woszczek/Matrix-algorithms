@@ -1,5 +1,7 @@
 import numpy as np
+
 rng = np.random.default_rng()  # generator
+
 
 def test_matrix_multiplication_fn(multiplication_function):
     """Test the correctness of a matrix multiplication algorithm"""
@@ -10,9 +12,9 @@ def test_matrix_multiplication_fn(multiplication_function):
     for n in sizes:
         print(f"\n=== Test for {n}x{n} matrix ===")
 
-        rand=rng.integers(1, 9)
-        A = np.random.rand(n+ rng.integers(1, 30),n+rand)     # zakres [a, b], n+1)
-        B = np.random.rand(n+rand, n)
+        rand = rng.integers(1, 9)
+        A = np.random.rand(n + rng.integers(1, 30), n + rand)  # zakres [a, b], n+1)
+        B = np.random.rand(n + rand, n)
 
         C, flops = multiplication_function(A, B)
         C_np = np.dot(A, B)

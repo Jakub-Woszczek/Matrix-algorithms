@@ -1,11 +1,12 @@
 import numpy as np
 
+
 def recursive_gauss_elimination(
     A: np.ndarray,
     inversion_function,
     multiplication_function,
     lu_factor_function,
-    b: np.ndarray | None = None
+    b: np.ndarray | None = None,
 ):
     A = np.asarray(A, dtype=float)
     n = A.shape[0]
@@ -22,18 +23,21 @@ def recursive_gauss_elimination(
     def mm(X, Y):
         nonlocal flops
         C, f = multiplication_function(X, Y)
-        flops += int(f);  return C
+        flops += int(f)
+        return C
 
     def inv(M):
         nonlocal flops
         Minv, f = inversion_function(M, multiplication_function)
-        flops += int(f);  return Minv
+        flops += int(f)
+        return Minv
 
     def lu(Ablk):
         nonlocal flops
         out = lu_factor_function(Ablk, inversion_function, multiplication_function)
         if len(out) == 3:
-            L, U, f = out; flops += int(f)
+            L, U, f = out
+            flops += int(f)
         else:
             L, U = out
         return L, U
@@ -60,7 +64,7 @@ def recursive_gauss_elimination(
         if nloc == 1:
             return base_1x1(M, b_loc)
 
-        k   = nloc // 2
+        k = nloc // 2
         A11, A12 = M[:k, :k], M[:k, k:]
         A21, A22 = M[k:, :k], M[k:, k:]
         b1 = b_loc[:k, :] if b_loc is not None else None

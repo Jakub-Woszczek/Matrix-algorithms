@@ -1,10 +1,13 @@
 import numpy as np
 import time
 
+
 def test_matrix_inversion_fn(inversion_function, multiplication_function):
 
     sizes = [i for i in range(3, 20, 2)]
-    print(f"testing {inversion_function.__name__} with {multiplication_function.__name__}")
+    print(
+        f"testing {inversion_function.__name__} with {multiplication_function.__name__}"
+    )
 
     for n in sizes:
         print(f"\n=== Test for {n}x{n} matrix ===")

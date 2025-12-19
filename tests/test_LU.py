@@ -1,7 +1,16 @@
 import numpy as np
 
 
-def test_lu_fn(lu_fn, inversion_function,multiplication_function,start=2, stop=30, step=1, seed=0, atol=1e-8):
+def test_lu_fn(
+    lu_fn,
+    inversion_function,
+    multiplication_function,
+    start=2,
+    stop=30,
+    step=1,
+    seed=0,
+    atol=1e-8,
+):
     """
     Prosty test LU bez pivotowania:
       - dla n w [start, stop) co 'step' losuje A ~ N(0,1)
@@ -18,7 +27,7 @@ def test_lu_fn(lu_fn, inversion_function,multiplication_function,start=2, stop=3
         A = rng.normal(size=(n, n)).astype(float)
 
         try:
-            out = lu_fn(A, inversion_function,multiplication_function)
+            out = lu_fn(A, inversion_function, multiplication_function)
             L, U, flops = out
 
         except ValueError as e:

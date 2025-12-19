@@ -1,11 +1,16 @@
 import numpy as np
 
+
 def test_gauss_fn(
-    gauss_fn,                 # callable(A, inversion_function, multiplication_function, lu_factor_function, b=None)
+    gauss_fn,  # callable(A, inversion_function, multiplication_function, lu_factor_function, b=None)
     inversion_function,
     multiplication_function,
     lu_factor_function,
-    start=2, stop=30, step=1, seed=0, atol=1e-8
+    start=2,
+    stop=30,
+    step=1,
+    seed=0,
+    atol=1e-8,
 ):
     """
     Test rekurencyjnej eliminacji Gaussa (blokowej, 'jak w PDF').
@@ -55,7 +60,13 @@ def test_gauss_fn(
 
         # uruchom testowaną funkcję (z i bez RHS)
         try:
-            out_no_rhs = gauss_fn(A, inversion_function, multiplication_function, lu_factor_function, b=None)
+            out_no_rhs = gauss_fn(
+                A,
+                inversion_function,
+                multiplication_function,
+                lu_factor_function,
+                b=None,
+            )
             # (U, flops) albo (U, x, flops) gdy ktoś omyłkowo zwróci x
             if len(out_no_rhs) == 3:
                 U_only, flops_no_rhs = out_no_rhs[0], out_no_rhs[2]
@@ -70,7 +81,9 @@ def test_gauss_fn(
 
         # z RHS
         try:
-            out_with_rhs = gauss_fn(A, inversion_function, multiplication_function, lu_factor_function, b=b)
+            out_with_rhs = gauss_fn(
+                A, inversion_function, multiplication_function, lu_factor_function, b=b
+            )
             if len(out_with_rhs) == 3:
                 U_rhs, x, flops_rhs = out_with_rhs
             else:
@@ -83,14 +96,18 @@ def test_gauss_fn(
 
         # weryfikacje
         ok_shape_no_rhs = U_only.shape == (n, n)
-        ok_tri_no_rhs   = np.allclose(np.tril(U_only, -1), 0.0, atol=atol)
+        ok_tri_no_rhs = np.allclose(np.tril(U_only, -1), 0.0, atol=atol)
         close_ref_no_rhs = np.allclose(U_only, U_ref, atol=atol, rtol=0.0)
-        rel_err_no_rhs = np.linalg.norm(U_only - U_ref, ord="fro") / (np.linalg.norm(U_ref, ord="fro") + 1e-15)
+        rel_err_no_rhs = np.linalg.norm(U_only - U_ref, ord="fro") / (
+            np.linalg.norm(U_ref, ord="fro") + 1e-15
+        )
 
         ok_shape_rhs = U_rhs.shape == (n, n)
-        ok_tri_rhs   = np.allclose(np.tril(U_rhs, -1), 0.0, atol=atol)
+        ok_tri_rhs = np.allclose(np.tril(U_rhs, -1), 0.0, atol=atol)
         close_ref_rhs = np.allclose(U_rhs, U_ref, atol=atol, rtol=0.0)
-        rel_err_rhs = np.linalg.norm(U_rhs - U_ref, ord="fro") / (np.linalg.norm(U_ref, ord="fro") + 1e-15)
+        rel_err_rhs = np.linalg.norm(U_rhs - U_ref, ord="fro") / (
+            np.linalg.norm(U_ref, ord="fro") + 1e-15
+        )
 
         # jeśli zwrócono x, sprawdź residual
         res_ok = False
@@ -101,14 +118,22 @@ def test_gauss_fn(
             res_norm = np.linalg.norm(r, ord=2) / (np.linalg.norm(b, ord=2) + 1e-15)
             res_ok = res_norm <= 1e2 * atol  # lekko luźniej niż atol na elementach
 
-        passed = (ok_shape_no_rhs and ok_tri_no_rhs and close_ref_no_rhs
-                  and ok_shape_rhs and ok_tri_rhs and close_ref_rhs
-                  and res_ok)
+        passed = (
+            ok_shape_no_rhs
+            and ok_tri_no_rhs
+            and close_ref_no_rhs
+            and ok_shape_rhs
+            and ok_tri_rhs
+            and close_ref_rhs
+            and res_ok
+        )
 
         if passed:
             f1 = f" | FLOPs(noRHS)={flops_no_rhs}" if flops_no_rhs is not None else ""
             f2 = f" | FLOPs(RHS)={flops_rhs}" if flops_rhs is not None else ""
-            print(f"✅ OK (rel_err U={rel_err_no_rhs:.2e}/{rel_err_rhs:.2e}, resid={res_norm:.2e}){f1}{f2}")
+            print(
+                f"✅ OK (rel_err U={rel_err_no_rhs:.2e}/{rel_err_rhs:.2e}, resid={res_norm:.2e}){f1}{f2}"
+            )
         else:
             print(
                 "❌ FAIL "

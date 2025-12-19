@@ -1,9 +1,11 @@
 import numpy as np
 
+
 def determinant_via_lu(A: np.ndarray, inversion_function, multiplication_function):
     L, U, flops = lu_recursive(A, inversion_function, multiplication_function)
     detA = float(np.prod(np.diag(U)))
     return detA, L, U, flops
+
 
 def lu_recursive(A: np.ndarray, inversion_function, multiplication_function):
 
@@ -33,7 +35,6 @@ def lu_recursive(A: np.ndarray, inversion_function, multiplication_function):
     def split(M):
         k = M.shape[0] // 2
         return M[:k, :k], M[:k, k:], M[k:, :k], M[k:, k:]
-
 
     def join_blocks(L11, L21, L22, U11, U12, U22):
 
