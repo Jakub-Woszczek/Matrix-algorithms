@@ -1,22 +1,22 @@
+import os
 import matplotlib
 
-matplotlib.use("Agg")# backend bez GUI
+matplotlib.use("Agg")  # backend bez GUI
 import matplotlib.pyplot as plt
 from PIL import Image
 
 from lab3.HierarchicalTree import HierarchicalTree
-from lab3.image_magic.split_rgb import split_rgb
+from lab3.image_magic.split_hsv import split_hsv
 
 IMAGE_SAVE_PATH = r"lab3/processed_images/"
-IMAGE_READ_PATH = r"lab3/image.png"
+IMAGE_SAVE_PATH_REPORT = r"lab3/processed_images/report/"
+IMAGE_READ_PATH = r"lab3/img.png"
 
 image = Image.open(IMAGE_READ_PATH)
-r, g, b = split_rgb(image)
+h, s, v = split_hsv(image)
 
 
-
-
-'''
+"""
 delta = liczba (tj ile wartości osobliwych ma być zachowanych w SVD)
 lub
 delta = "median" lub "mean" lub "max" lub "min"
@@ -24,66 +24,73 @@ delta = "median" lub "mean" lub "max" lub "min"
 b_rank = maksymalna ranga bloku
 min_size = minimalny rozmiar bloku (wys / szer)
 
-'''
-tree_r = HierarchicalTree(IMAGE_READ_PATH, delta="median" ,b_rank=4, min_size=4)
-tree_g = HierarchicalTree(IMAGE_READ_PATH, delta="min", b_rank=4, min_size=4)
-tree_b = HierarchicalTree(IMAGE_READ_PATH, delta=24, b_rank=4, min_size=4)
+"""
+# delta_set = ["median","mean","max","min"]
+delta_set = ["mean", "max", "min"]
+rank_set = [1, 4]
 
-tree_r.red_layer = r
-tree_g.green_layer = g
-tree_b.blue_layer = b
+delta = "mean"
+b_rank = 4
+for b_rank in rank_set:
+    for delta in delta_set:
+        print(b_rank, delta)
+        folder_name = f"rank_{b_rank}_delta_{delta}"
+        full_path = f"{IMAGE_SAVE_PATH_REPORT}/{folder_name}/"
+        os.makedirs(full_path, exist_ok=True)
 
-tree_r.create_tree(tree_r.red_layer)
-tree_g.create_tree(tree_g.green_layer)
-tree_b.create_tree(tree_b.blue_layer)
+        tree_h = HierarchicalTree(
+            IMAGE_READ_PATH, delta=delta, b_rank=b_rank, min_size=4
+        )
+        tree_s = HierarchicalTree(
+            IMAGE_READ_PATH, delta=delta, b_rank=b_rank, min_size=4
+        )
+        tree_v = HierarchicalTree(
+            IMAGE_READ_PATH, delta=delta, b_rank=b_rank, min_size=4
+        )
 
-# rekonstrukcja
-recon_r = tree_r.reconstruct_channel(tree_r.red_layer.shape)
-recon_g = tree_g.reconstruct_channel(tree_g.red_layer.shape)
-recon_b = tree_b.reconstruct_channel(tree_b.red_layer.shape)
+        tree_h.hue_layer = h
+        tree_s.saturation_layer = s
+        tree_v.value_layer = v
 
-# składamy pełen obraz
-recon_img = Image.merge(
-    "RGB",
-    (Image.fromarray(recon_r), Image.fromarray(recon_g), Image.fromarray(recon_b)),
-)
+        tree_h.create_tree(tree_h.hue_layer)
+        tree_s.create_tree(tree_s.saturation_layer)
+        tree_v.create_tree(tree_v.value_layer)
 
-# zapis porównania
-plt.figure(figsize=(10, 5))
-plt.subplot(1, 2, 1)
-plt.title("Oryginał")
-plt.imshow(image)
-plt.axis("off")
+        # rekonstrukcja
+        recon_h = tree_h.reconstruct_channel(tree_h.hue_layer.shape)
+        recon_s = tree_s.reconstruct_channel(tree_s.hue_layer.shape)
+        recon_v = tree_v.reconstruct_channel(tree_v.hue_layer.shape)
 
-plt.subplot(1, 2, 2)
-plt.title("Skompresowany")
-plt.imshow(recon_img)
-plt.axis("off")
-plt.tight_layout()
-plt.savefig(IMAGE_SAVE_PATH + "cyberp_anime_comparison.png", dpi=150)
-recon_img.save(IMAGE_SAVE_PATH + "cyberp_anime_compressed.png")
+        # wizualizacja każdego kanału
+        Image.fromarray(recon_h).save(full_path + f"h_compressed.png")
+        Image.fromarray(recon_s).save(full_path + f"s_compressed.png")
+        Image.fromarray(recon_v).save(full_path + f"v_compressed.png")
 
-# wizualizacje podziału dla każdego kanału
-partition_img_r = tree_r.draw_partition(tree_r.red_layer.shape)
-plt.figure(figsize=(5, 5))
-plt.title("Struktura podziału bloków – R")
-plt.imshow(partition_img_r, cmap="gray", vmin=0, vmax=255)
-plt.axis("off")
-plt.tight_layout()
-plt.savefig(IMAGE_SAVE_PATH + "cyberp_anime_partition_structure_red.png", dpi=150)
+        # składamy pełen obraz
+        hsv_img = Image.merge(
+            "HSV",
+            (
+                Image.fromarray(recon_h),
+                Image.fromarray(recon_s),
+                Image.fromarray(recon_v),
+            ),
+        )
 
-partition_img_g = tree_g.draw_partition(tree_g.red_layer.shape)
-plt.figure(figsize=(5, 5))
-plt.title("Struktura podziału bloków – G")
-plt.imshow(partition_img_g, cmap="gray", vmin=0, vmax=255)
-plt.axis("off")
-plt.tight_layout()
-plt.savefig(IMAGE_SAVE_PATH + "cyberp_anime_partition_structure_green.png", dpi=150)
+        recon_img = hsv_img.convert("RGB")
+        recon_img.save(full_path + "witcher_compressed.png")
 
-partition_img_b = tree_b.draw_partition(tree_b.red_layer.shape)
-plt.figure(figsize=(5, 5))
-plt.title("Struktura podziału bloków – B")
-plt.imshow(partition_img_b, cmap="gray", vmin=0, vmax=255)
-plt.axis("off")
-plt.tight_layout()
-plt.savefig(IMAGE_SAVE_PATH + "cyberp_anime_partition_structure_blue.png", dpi=150)
+        # wizualizacje podziału dla każdego kanału
+        partition_img_h = tree_h.draw_partition(tree_h.hue_layer.shape)
+        Image.fromarray(partition_img_h).save(
+            full_path + "witcher_partition_structure_h.png"
+        )
+
+        partition_img_s = tree_s.draw_partition(tree_s.hue_layer.shape)
+        Image.fromarray(partition_img_s).save(
+            full_path + "witcher_partition_structure_s.png"
+        )
+
+        partition_img_v = tree_v.draw_partition(tree_v.hue_layer.shape)
+        Image.fromarray(partition_img_v).save(
+            full_path + "witcher_partition_structure_v.png"
+        )

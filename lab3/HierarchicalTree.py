@@ -1,7 +1,8 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from lab3.image_magic.split_rgb import split_rgb
+from lab3.MyMatrix import MyMatrix
+from lab3.image_magic.split_hsv import split_hsv
 
 
 class HierarchicalTree:
@@ -14,11 +15,11 @@ class HierarchicalTree:
         self.min_size = int(min_size)  # minimalny rozmiar bloku (wys / szer)
         self.delta = delta  # próg wartości osobliwych`
         self.root = None
-        self.red_layer = None
-        self.green_layer = None
-        self.blue_layer = None
+        self.hue_layer = None
+        self.saturation_layer = None
+        self.value_layer = None
 
-        self.red_layer, self.green_layer, self.blue_layer = split_rgb(self.image)
+        self.hue_layer, self.saturation_layer, self.value_layer = split_hsv(self.image)
 
     def create_tree(self, image_matrix: np.ndarray):
         max_row, max_col = image_matrix.shape
@@ -43,7 +44,6 @@ class HierarchicalTree:
         self.root = self.build_node(my_matrix)
         print("Tree created with delta =", self.delta)
         return self.root
-
 
     def build_node(self, my_matrix):
         node = Node()
@@ -70,7 +70,7 @@ class HierarchicalTree:
         height, width = view.shape
         min_side = min(height, width)
 
-        # waunki podziału
+        # warunki podziału
         should_split = (
             min_side >= 2 * self.min_size  # musi się dać sensownie podzielić
             and k == self.b_rank  # mamy "pełną" rangę więc jest jeszcze co kompresować
@@ -169,46 +169,3 @@ class Node:
 
     def is_leaf(self):
         return all(ch is None for ch in self.children)
-
-
-class MyMatrix:
-    """
-    Lightweight matrix view (window) into a larger NumPy array.
-    """
-
-    def __init__(self, matrix, min_row, max_row, min_col, max_col):
-        self.matrix = matrix
-
-        # Validate coordinates
-        if not (0 <= min_row <= max_row <= matrix.shape[0]):
-            raise ValueError("Row bounds outside matrix range")
-        if not (0 <= min_col <= max_col <= matrix.shape[1]):
-            raise ValueError("Column bounds outside matrix range")
-
-        self.min_row = min_row
-        self.max_row = max_row
-        self.min_col = min_col
-        self.max_col = max_col
-
-    def get_view(self):
-        """Return a NumPy *view* of the selected submatrix."""
-        return self.matrix[self.min_row : self.max_row, self.min_col : self.max_col]
-
-    def compress_matrix(self):
-        """
-        Split the matrix view into 4 quadrants (UL, UR, LL, LR).
-        Returns a list of 4 MyMatrix objects.
-        """
-        mid_row = (self.min_row + self.max_row) // 2
-        mid_col = (self.min_col + self.max_col) // 2
-
-        return [
-            # Upper-left
-            MyMatrix(self.matrix, self.min_row, mid_row, self.min_col, mid_col),
-            # Upper-right
-            MyMatrix(self.matrix, self.min_row, mid_row, mid_col, self.max_col),
-            # Lower-left
-            MyMatrix(self.matrix, mid_row, self.max_row, self.min_col, mid_col),
-            # Lower-right
-            MyMatrix(self.matrix, mid_row, self.max_row, mid_col, self.max_col),
-        ]

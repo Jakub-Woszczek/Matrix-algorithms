@@ -2,6 +2,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
+
 def run_lab(lab_name: str):
     lab_path = Path(__file__).parent / lab_name / "main.py"
     if not lab_path.exists():
@@ -9,6 +10,7 @@ def run_lab(lab_name: str):
         return
     print(f"▶️ Running {lab_name} ...\n")
     subprocess.run(["python3", "-m", f"{lab_name}.main"], check=True)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run specific lab scripts.")
