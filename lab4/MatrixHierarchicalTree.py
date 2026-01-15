@@ -62,7 +62,6 @@ class MatrixHierarchicalTree:
                 return float(np.min(S))
             raise ValueError(f"Nieznany tryb delta: {self.delta}")
 
-        # float / double
         return float(self.delta)
 
     def create_tree(self, matrix: np.ndarray) -> Node:
@@ -197,10 +196,6 @@ def h_mv_mult(root: Node, x: np.ndarray) -> np.ndarray:
 def _dense_block_from_node(node):
     """
     Zwraca gęstą macierz (np.ndarray) reprezentowaną przez node.
-    Node ma:
-      - my_matrix: MyMatrix (window) -> trzeba użyć get_view()
-      - albo low-rank: U,S,VT
-      - children: 4 ćwiartki
     """
 
     if node.is_leaf:
@@ -233,23 +228,17 @@ def h_add(A: Node, B: Node, compressor: MatrixHierarchicalTree) -> Node:
     """
     C = A + B
     Dla prostoty: składamy gęsto blok i kompresujemy procedurą z Zad. 3.
-    (To jest poprawne merytorycznie do zadania; szybciej się da, ale nie trzeba.)
     """
     # blok A i B powinny mieć ten sam zakres
     dense = _dense_block_from_node(A) + _dense_block_from_node(B)
 
-    # Tworzymy MyMatrix dla tego bloku (z tymi samymi granicami)
-    m = A.my_matrix
-    # UWAGA: MyMatrix prawdopodobnie trzyma referencję do macierzy bazowej i offsety.
-    # Najprościej: budujemy nową macierz "lokalną" i ustawiamy zakresy 0..h, 0..w.
     local = MyMatrix(dense, 0, dense.shape[0], 0, dense.shape[1])
     return compressor.build_node(local)
 
 
 def h_mult(A: Node, B: Node, compressor: MatrixHierarchicalTree) -> Node:
     """
-    C = A * B (rekurencja blokowa 2x2)
-    Jeżeli któryś blok jest liściem -> fallback: gęsty iloczyn + kompresja.
+    C = A * B
     """
     # jeśli liść/liść albo mieszany -> fallback dense
     if A.is_leaf() or B.is_leaf():
