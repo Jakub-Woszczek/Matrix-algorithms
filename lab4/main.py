@@ -1,23 +1,23 @@
 import os
+import time
 from datetime import datetime
 
 import matplotlib
+
+from lab4.matrix_generator import generate_3d_grid_matrix
 
 matplotlib.use("Agg")  # backend bez GUI (USTAW przed importem pyplot)
 
 import numpy as np
 from matplotlib import pyplot as plt
-from PIL import Image
 
 from lab4.MatrixHierarchicalTree import MatrixHierarchicalTree
 from lab4.MatrixHierarchicalTree import h_mv_mult, h_mult, _dense_block_from_node
 
-# ===== ŚCIEŻKI =====
 IMAGE_SAVE_PATH = r"lab4/processed_images/"
 IMAGE_SAVE_PATH_REPORT = r"lab4/processed_images/report/"
 IMAGE_READ_PATH = r"lab4/img.png"
 
-# ===== UTWÓRZ KATALOGI =====
 os.makedirs(IMAGE_SAVE_PATH, exist_ok=True)
 os.makedirs(IMAGE_SAVE_PATH_REPORT, exist_ok=True)
 
@@ -28,63 +28,21 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 TXT_PATH = os.path.join(RESULTS_DIR, "results.txt")
 
 
-def generate_3d_grid_matrix(k: int, seed: int = 42) -> np.ndarray:
-    """
-    Generuje macierz NxN (N = (2^k)^3) opisującą topologię 3D siatki sześciennej:
-    - wiersz = wierzchołek
-    - w kolumnach niezerowe losowe wartości dla sąsiadów (6-neighborhood)
-    - na przekątnej również wartość losowa (np. 10x większa)
-    """
-    dim = 2**k
-    N = dim * dim * dim
-    A = np.zeros((N, N), dtype=np.float64)
-
-    rng = np.random.default_rng(seed)
-
-    def idx(x: int, y: int, z: int) -> int:
-        return x + y * dim + z * dim * dim
-
-    neigh = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]
-
-    def rand_val() -> float:
-        return float(rng.uniform(0.1, 1.0))
-
-    for z in range(dim):
-        for y in range(dim):
-            for x in range(dim):
-                r = idx(x, y, z)
-
-                # diagonalna dominacja
-                A[r, r] = 10.0 * rand_val()
-
-                for dx, dy, dz in neigh:
-                    nx, ny, nz = x + dx, y + dy, z + dz
-                    if 0 <= nx < dim and 0 <= ny < dim and 0 <= nz < dim:
-                        c = idx(nx, ny, nz)
-                        A[r, c] = rand_val()
-
-    return A
-
-
-# ===== PARAMETRY KOMPRESJI =====
 b_rank = 32
 min_size = 4
-delta = "mean"  # albo np. 1e-3, albo "median"
+delta = "mean"
 
-# ===== USTAWIENIA WALIDACJI MNOŻENIA =====
 DO_MM = True  # ustaw False, jeśli chcesz pominąć mnożenie
 MM_VALIDATE_UP_TO_K = (
-    3  # dla k>3 walidacja A@A może być ciężka (u Ciebie i tak N rośnie)
+    4  # dla k>3 walidacja A@A może być ciężka (u Ciebie i tak N rośnie)
 )
 
-# nagłówek TXT
 with open(TXT_PATH, "w", encoding="utf-8") as f:
     f.write(f"ZAD 4 - wyniki | run={RUN_TS}\n")
     f.write(f"Parametry: b_rank={b_rank}, min_size={min_size}, delta={delta}\n")
     f.write(f"MM: DO_MM={DO_MM}, validate_up_to_k={MM_VALIDATE_UP_TO_K}\n\n")
 
-# ===== URUCHOMIENIE =====
-for k in [2, 3, 4]:  # możesz zmienić na [2, 3, 4]
+for k in [2, 3, 4]:
     print(f"\n===== ZAD 4: k={k} =====")
     A = generate_3d_grid_matrix(k, seed=42)
     N = A.shape[0]
@@ -108,20 +66,36 @@ for k in [2, 3, 4]:  # możesz zmienić na [2, 3, 4]
     plt.close(fig)
 
     # --- MV: A_hat * x ---
-    x = np.random.default_rng(0).standard_normal(N)
-    y_h = h_mv_mult(root, x)
+    elapsed_time_vector = 0
+    trial = 5
+    for _ in range(trial):  # Dajmy 5 prób
+        x = np.random.default_rng(0).standard_normal(N)
+        start = time.perf_counter()
+        y_h = h_mv_mult(root, x)
+        end = time.perf_counter()
+        elapsed_time_vector += end - start
+    elapsed_time_vector /= trial
 
     # walidacja MV
     y_ref = A @ x
-    err_mv = np.linalg.norm(y_ref - y_h) / (np.linalg.norm(y_ref) + 1e-15)
-    print("MV relative error:", err_mv)
+    # TODO to eval, chat podaje twoją jako poprawniejszą numerycznie ale na slajdach jest inna
+    # err_mv = np.linalg.norm(y_ref - y_h) / (np.linalg.norm(y_ref) + 1e-15)
+    err_mv = np.sum((y_ref - y_h) ** 2)
+    print("MV error:", err_mv)
+    print("MV time:", elapsed_time_vector)
 
     # --- MM: A_hat * A_hat (hierarchical multiplication) ---
     err_mm = None
     mm_note = ""
     if DO_MM:
         print("MM (hierarchical) ...")
-        C_root = h_mult(root, root, compressor)
+        elapsed_time_matrix = 0
+        for _ in range(trial):
+            start = time.perf_counter()
+            C_root = h_mult(root, root, compressor)
+            end = time.perf_counter()
+            elapsed_time_matrix += end - start
+        elapsed_time_matrix /= trial
 
         # walidacja MM: porównanie z A@A (gęste) tylko do pewnego k
         if k <= MM_VALIDATE_UP_TO_K:
@@ -131,8 +105,11 @@ for k in [2, 3, 4]:  # możesz zmienić na [2, 3, 4]
             # rekonstrukcja wyniku hierarchicznego do macierzy gęstej
             A2_h = _dense_block_from_node(C_root)
 
-            err_mm = np.linalg.norm(A2_ref - A2_h) / (np.linalg.norm(A2_ref) + 1e-15)
+            # TODO to samo tutaj
+            # err_mm = np.linalg.norm(A2_ref - A2_h) / (np.linalg.norm(A2_ref) + 1e-15)
+            err_mm = np.sum((A2_h - A2_ref) ** 2)
             print("MM relative error:", err_mm)
+            print("MM time:", elapsed_time_matrix)
         else:
             mm_note = f"Pomijam walidację MM dla k={k} (k > {MM_VALIDATE_UP_TO_K})."
             print(mm_note)
@@ -141,10 +118,12 @@ for k in [2, 3, 4]:  # możesz zmienić na [2, 3, 4]
     with open(TXT_PATH, "a", encoding="utf-8") as f:
         f.write(f"k={k}, N={N}\n")
         f.write(f"err_mv={err_mv}\n")
+        f.write(f"time_mv={elapsed_time_vector}\n")
         f.write(f"partition_png={part_path}\n")
         if DO_MM:
             if err_mm is not None:
                 f.write(f"err_mm={err_mm}\n")
+                f.write(f"elapsed_time_matrix={elapsed_time_matrix}\n")
             else:
                 f.write("err_mm=SKIPPED\n")
                 if mm_note:

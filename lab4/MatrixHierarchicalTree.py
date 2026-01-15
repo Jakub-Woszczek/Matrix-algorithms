@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from lab4.MyMatrix import MyMatrix
+from lab3.MyMatrix import MyMatrix
 from typing import Tuple
 
 
@@ -27,7 +27,6 @@ class Node:
 
 
 class MatrixHierarchicalTree:
-
     def __init__(self, delta, b_rank, min_size=4, delta_probe=256):
         self.b_rank = int(b_rank)
         self.min_size = int(min_size)
@@ -94,7 +93,6 @@ class MatrixHierarchicalTree:
         U_used = U[:, :k]
         VT_used = VT[:k, :]
 
-
         node.U = U_used
         node.S = S_used
         node.VT = VT_used
@@ -103,9 +101,7 @@ class MatrixHierarchicalTree:
         min_side = min(height, width)
 
         should_split = (
-            min_side >= 2 * self.min_size
-            and k == self.b_rank
-            and len(S_thr) > 0
+            min_side >= 2 * self.min_size and k == self.b_rank and len(S_thr) > 0
         )
 
         if not should_split:
@@ -165,7 +161,6 @@ class MatrixHierarchicalTree:
             self._reconstruct_node(ch, out_matrix)
 
 
-
 def h_mv_mult(root: Node, x: np.ndarray) -> np.ndarray:
     """
     y = A*x w oparciu o drzewo kompresji.
@@ -174,8 +169,13 @@ def h_mv_mult(root: Node, x: np.ndarray) -> np.ndarray:
     y = np.zeros(n, dtype=np.float64)
 
     def rec(node: Node):
-        m = node.my_matrix
-        r0, r1, c0, c1 = m.min_row, m.max_row, m.min_col, m.max_col
+        my_matrix = node.my_matrix
+        r0, r1, c0, c1 = (
+            my_matrix.min_row,
+            my_matrix.max_row,
+            my_matrix.min_col,
+            my_matrix.max_col,
+        )
 
         if node.is_leaf():
             xs = x[c0:c1]  # fragment wektora
@@ -203,19 +203,15 @@ def _dense_block_from_node(node):
       - children: 4 ćwiartki
     """
 
-    # --- LIŚĆ ---
     if node.is_leaf:
         if node.my_matrix is not None:
-            # MyMatrix -> numpy view
             return node.my_matrix.get_view()
 
-        # low-rank liść
         if node.U is not None and node.S is not None and node.VT is not None:
             return node.U @ (np.diag(node.S) @ node.VT)
 
         raise AttributeError("Leaf node nie ma my_matrix ani (U,S,VT).")
 
-    # --- WĘZEŁ WEWNĘTRZNY ---
     ch = node.children
     if ch is None or len(ch) == 0:
         raise AttributeError("Internal node nie ma children.")
@@ -287,12 +283,14 @@ def h_mult(A: Node, B: Node, compressor: MatrixHierarchicalTree) -> Node:
 
     # Sklejamy dzieci do nowego node:
     node = Node()
-    # zakres bloku: bierzemy z A (ten sam)
-    # UWAGA: tu zakładam, że MyMatrix w Twoim projekcie “widzi” zakresy globalne.
-    # W fallbackach budowaliśmy lokalny MyMatrix 0..h. Tu zostajemy przy strukturze dzieci.
-    node.my_matrix = A.my_matrix
     node.set_children([C11, C12, C21, C22])
+    C_dense = np.block(
+        [
+            [_dense_block_from_node(C11), _dense_block_from_node(C12)],
+            [_dense_block_from_node(C21), _dense_block_from_node(C22)],
+        ]
+    )
 
-    # wewnętrzny node nie musi mieć U/S/VT
-    node.U, node.S, node.VT = None, None, None
+    my_matrix = MyMatrix(C_dense, 0, C_dense.shape[0], 0, C_dense.shape[1])
+    node = compressor.build_node(my_matrix)
     return node
