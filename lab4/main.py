@@ -32,12 +32,10 @@ b_rank = 32
 min_size = 4
 delta = "mean"
 
-MM_VALIDATE_UP_TO_K = 4  # dla k>3 walidacja A@A może być ciężka
 
 with open(TXT_PATH, "w", encoding="utf-8") as f:
     f.write(f"ZAD 4 - wyniki | run={RUN_TS}\n")
     f.write(f"Parametry: b_rank={b_rank}, min_size={min_size}, delta={delta}\n")
-    f.write(f"Validate_up_to_k={MM_VALIDATE_UP_TO_K}\n\n")
 
 for k in [2, 3, 4]:
     print(f"\n----- ZAD 4: k={k} -----")
@@ -75,6 +73,7 @@ for k in [2, 3, 4]:
     # walidacja MV
     y_ref = A @ x
     err_mv = np.sum((y_ref - y_h) ** 2)
+    err_mv_relative = np.linalg.norm(y_ref - y_h) ** 2 / np.linalg.norm(y_ref) ** 2
     print("MV error:", err_mv)
     print("MV time:", elapsed_time_vector)
 
@@ -90,23 +89,25 @@ for k in [2, 3, 4]:
     elapsed_time_matrix /= trial
 
     # walidacja MM
-    if k <= MM_VALIDATE_UP_TO_K:
-        print("MM validate (dense A@A) ...")
-        A2_ref = A @ A
-        # rekonstrukcja wyniku hierarchicznego do macierzy gęstej
-        A2_h = _dense_block_from_node(C_root)
-        err_mm = np.sum((A2_h - A2_ref) ** 2)
-        print("MM relative error:", err_mm)
-        print("MM time:", elapsed_time_matrix)
+    print("MM validate (dense A@A) ...")
+    A2_ref = A @ A
+    # rekonstrukcja wyniku hierarchicznego do macierzy gęstej
+    A2_h = _dense_block_from_node(C_root)
+    err_mm = np.sum((A2_h - A2_ref) ** 2)
+    err_mm_relative = np.linalg.norm(A2_h - A2_ref) ** 2 / np.linalg.norm(A2_ref) ** 2
+    print("MM relative error:", err_mm)
+    print("MM time:", elapsed_time_matrix)
 
     # zapis do TXT
     with open(TXT_PATH, "a", encoding="utf-8") as f:
         f.write(f"k={k}, N={N}\n")
         f.write(f"err_mv={err_mv}\n")
+        f.write(f"err_mv_relative={err_mv_relative}\n")
         f.write(f"time_mv={elapsed_time_vector}\n")
         f.write(f"partition_png={part_path}\n")
         if err_mm is not None:
             f.write(f"err_mm={err_mm}\n")
+            f.write(f"err_mm_relative={err_mm_relative}\n")
             f.write(f"elapsed_time_matrix={elapsed_time_matrix}\n")
         else:
             f.write("err_mm=SKIPPED\n")
