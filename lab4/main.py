@@ -78,9 +78,7 @@ for k in [2, 3, 4]:
 
     # walidacja MV
     y_ref = A @ x
-    # TODO to eval, chat podaje twoją jako poprawniejszą numerycznie ale na slajdach jest inna
-    # err_mv = np.linalg.norm(y_ref - y_h) / (np.linalg.norm(y_ref) + 1e-15)
-    err_mv = np.sum((y_ref - y_h) ** 2)
+    err_mv = np.linalg.norm(y_ref - y_h) / (np.linalg.norm(y_ref) + 1e-15)
     print("MV error:", err_mv)
     print("MV time:", elapsed_time_vector)
 
@@ -105,9 +103,7 @@ for k in [2, 3, 4]:
             # rekonstrukcja wyniku hierarchicznego do macierzy gęstej
             A2_h = _dense_block_from_node(C_root)
 
-            # TODO to samo tutaj
-            # err_mm = np.linalg.norm(A2_ref - A2_h) / (np.linalg.norm(A2_ref) + 1e-15)
-            err_mm = np.sum((A2_h - A2_ref) ** 2)
+            err_mm = np.linalg.norm(A2_ref - A2_h) / (np.linalg.norm(A2_ref) + 1e-15)
             print("MM relative error:", err_mm)
             print("MM time:", elapsed_time_matrix)
         else:
